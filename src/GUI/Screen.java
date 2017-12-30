@@ -30,24 +30,6 @@ public class Screen {
     }
 
     public void render(int[] pixels, int offset, int row) {
-        for(int yTile = yOffset >> 3; yTile <= (yOffset + height) >> 3; yTile++) {
-            int yMin = yTile * 8 - yOffset;
-            int yMax = yMin + 8;
 
-            if(yMin < 0) yMin = 0;
-            if(yMax > height) yMax = height;
-
-            for(int xTile = yOffset >> 3; xTile  <= (yOffset + height) >> 3; xTile ++) {
-                int xMin = xTile  * 8 - yOffset;
-                int xMax = xMin + 8;
-
-                if(xMin < 0) xMin = 0;
-                if(xMax > height) xMax = height;
-
-                int tileIndex = (xTile & (MAP_WIDTH_MASK)) + (yTile & (MAP_WIDTH_MASK)) * MAP_WIDTH;
-            }
-
-            for (int y = yMin; y)
-        }
     }
 }

@@ -1,6 +1,9 @@
 package GUI;
 
 import Entities.PlaceholderPlayer;
+import Input.GameInputHandler;
+import Input.PlaceholderInputHandler;
+import Utility.Logging;
 
 import javax.swing.*;
 import java.awt.*;
@@ -9,7 +12,6 @@ import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferInt;
 
 public class Game extends Canvas implements Runnable {
-
     //Frame Settings
     private JFrame jFrame;
     private static final int WIDTH = 160;
@@ -23,16 +25,24 @@ public class Game extends Canvas implements Runnable {
     private static final int TARGET_FPS = 110;
     private static final double OPTIMAL_TIME = (double)ONE_BIL / (double)TARGET_FPS;
 
-    //Statistics Settings
+    //Statistics / Debugging Settings
     private int avgFps = 0;
     private int tick = 0;
     private long avgFrameTime = 0L;
-    private static final boolean drawFrameStats = true; // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< add to constructor
+    private boolean drawFrameStats;
+    private boolean testing;
+    private static final Logging LOG = new Logging(Game.class);
+
+    //Input
+    private GameInputHandler inputHandler;
 
     //Placeholder
     private BufferedImage image = new BufferedImage(WIDTH, HEIGHT, BufferedImage.TYPE_INT_RGB);
     private int[] pixels = ((DataBufferInt) image.getRaster().getDataBuffer()).getData();
     private PlaceholderPlayer player = new PlaceholderPlayer("/PlayerSprites/placeholderPlayer.png");
+
+    //Testing
+    private String displayText = "____";
 
     @Override
     public void run() {
@@ -48,13 +58,14 @@ public class Game extends Canvas implements Runnable {
 
             frameTime += updateLength;
             fps ++;
-            tick++;
+
+            tick();
 
             if(frameTime >= ONE_BIL) {
                 if(drawFrameStats) {
                     avgFrameTime = frameTime;
                     avgFps = fps;
-                    System.out.println("(FPS: "+avgFps+" , FRAME_TIME: "+avgFrameTime+" , GAME_TICK: "+tick+")");
+                    LOG.print("STATISTICS -> ","FPS: "+avgFps, "FRAME_TIME: "+avgFrameTime, "GAME_TICK: "+tick);
                 }
                 frameTime = 0;
                 fps = 0;
@@ -72,6 +83,15 @@ public class Game extends Canvas implements Runnable {
                 }
             }
         }
+    }
+
+    private void tick() {
+        tick++;
+
+        if(inputHandler.up.isPressed())displayText = "UP";
+        if(inputHandler.down.isPressed())displayText = "DOWN";
+        if(inputHandler.left.isPressed())displayText = "LEFT";
+        if(inputHandler.right.isPressed())displayText = "RIGHT";
     }
 
     private void doGameUpdates(double delta) {
@@ -101,16 +121,25 @@ public class Game extends Canvas implements Runnable {
             g.drawString("GAME_TICKS: "+tick, 20, 80);
         }
 
+        if(testing) {
+            g.setColor(Color.green);
+            g.drawString(displayText, 20, 110);
+        }
+
         g.dispose();
         bs.show();
     }
 
-    public Game() {
+    public Game(boolean testing, boolean drawFrameStats) {
+        this.testing = testing;
+        this.drawFrameStats = drawFrameStats;
+        this.inputHandler = new PlaceholderInputHandler(this);
+
         setMinimumSize(new Dimension(WIDTH * SCALE, HEIGHT * SCALE));
         setMaximumSize(new Dimension(WIDTH * SCALE, HEIGHT * SCALE));
         setPreferredSize(new Dimension(WIDTH * SCALE, HEIGHT * SCALE));
 
-        jFrame = new JFrame(NAME);
+        this.jFrame = new JFrame(NAME);
         jFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         jFrame.setLayout(new BorderLayout());
 
