@@ -7,6 +7,7 @@ public interface GameInputHandler {
     Key down = new Key();
     Key left = new Key();
     Key right = new Key();
+    Key exit = new Key();
 
     void switchKey(int keyCode, boolean isPressed);
     void toggleKey(int keyCode);
