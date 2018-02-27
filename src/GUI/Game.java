@@ -3,11 +3,10 @@ package GUI;
 import Entities.PlaceholderPlayer;
 import Input.GameInputHandler;
 import Input.PlaceholderInputHandler;
-import Sprites.Positioning;
+import Map.Generator;
 import Utility.Logging;
 
 import javax.swing.*;
-import javax.swing.text.Position;
 import java.awt.*;
 import java.awt.image.BufferStrategy;
 import java.awt.image.BufferedImage;
@@ -42,6 +41,7 @@ public class Game extends Canvas implements Runnable {
     private BufferedImage image = new BufferedImage(WIDTH, HEIGHT, BufferedImage.TYPE_INT_RGB);
     private int[] pixels = ((DataBufferInt) image.getRaster().getDataBuffer()).getData();
     private PlaceholderPlayer player;
+    private Generator map;
 
     //Testing
     private String displayText = "____";
@@ -67,14 +67,14 @@ public class Game extends Canvas implements Runnable {
                 if (drawFrameStats) {
                     avgFrameTime = frameTime;
                     avgFps = fps;
-                    LOG.print("STATISTICS -> ", "FPS: " + avgFps, "FRAME_TIME: " + avgFrameTime, "GAME_TICK: " + tick);
+                    LOG.print("STATISTICS -> ", "FPS: " + avgFps, "FRAME_TIME: " + avgFrameTime, "GAME_TICK: " + tick, "DELTA: " + delta);
                 }
                 frameTime = 0;
                 fps = 0;
             }
 
             doGameUpdates(delta);
-            render();
+            render(delta);
 
             long sleepTime = (long) (lastLoopTime - System.nanoTime() + OPTIMAL_TIME) / 1000000;
             if (sleepTime > 0) {
@@ -129,10 +129,10 @@ public class Game extends Canvas implements Runnable {
         for (int i = 0; i < pixels.length; i++) {
             pixels[i] = i + tick;
         }
-        player.move();
+        player.move(delta);
     }
 
-    private void render() {
+    private void render(double delta) {
         BufferStrategy bs = getBufferStrategy();
         if (bs == null) {
             createBufferStrategy(3);
@@ -144,7 +144,7 @@ public class Game extends Canvas implements Runnable {
         g.setColor(Color.black);
         g.fillRect(0, 0, getWidth(), getHeight());
 
-        g.drawImage(image, 0, 0, getWidth(), getHeight(), null);
+//        g.drawImage(image, 0, 0, getWidth(), getHeight(), null); // makes the fugly shit
 
         if (drawFrameStats) {
             g.setColor(Color.green);
@@ -160,7 +160,8 @@ public class Game extends Canvas implements Runnable {
             g.drawString(displayText, 20, 110);
         }
 
-        player.draw(g);
+        map.draw(g, player);
+        player.draw(g, delta);
 
         g.dispose();
         bs.show();
@@ -187,10 +188,15 @@ public class Game extends Canvas implements Runnable {
         jFrame.setVisible(true);
 
         loadPlayer();
+        loadMap();
     }
 
     private void loadPlayer() {
         player = new PlaceholderPlayer("/Graphics/Sprites/PlayerSprites/placeholderPlayer.png", 100, 100);
+    }
+
+    private void loadMap() {
+        map = new Generator(WIDTH, HEIGHT, SCALE);
     }
 
     public synchronized void start() {

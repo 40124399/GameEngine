@@ -18,4 +18,9 @@ public enum Positioning {
     RUNNING_BACKWARD,
     RUNNING_LEFT,
     RUNNING_RIGHT;
+
+    @Override
+    public String toString() {
+        return this.name();
+    }
 }

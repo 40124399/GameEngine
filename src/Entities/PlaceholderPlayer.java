@@ -1,15 +1,15 @@
 package Entities;
 
+import CharacterLogic.Movement.Movement;
 import Sprites.Positioning;
 import Sprites.ProcessedSpriteSheet;
 import Sprites.SpriteProcessor;
 import Utility.Logging;
-import javafx.geometry.Pos;
 
-import javax.imageio.ImageIO;
-import java.awt.image.BufferedImage;
-import java.util.Map;
 import java.awt.*;
+import java.awt.image.BufferedImage;
+
+import static Sprites.Positioning.*;
 
 public class PlaceholderPlayer {
 
@@ -21,23 +21,24 @@ public class PlaceholderPlayer {
     private SpriteProcessor spriteProcessor;
     private ProcessedSpriteSheet spriteSheet;
 
-    private int cordX;
-    private int cordY;
-
     private boolean forward = false;
     private boolean backward = false;
     private boolean left = false;
     private boolean right = false;
 
+    private double interFrameDelta;
+    private static final double targetGameFramerate = 120; //TODO - take from game settings so it will scale with different refresh rates
+    private static final double animationFramerate = 12; //TODO - load with image settings so more can be abstracted - allow it to change? Speed up and slow down game speed via delta or internal logic?
+    private static final double maxInterFrameDelta = targetGameFramerate / animationFramerate;
+
     //Player stats
     private double maxVelocity = 3D;
-    private double accelerationDelta = 0.2D;
-    private double decelerationDelta = 0.5D;
-    private double xVelocity = 0D;
-    private double yVelocity = 0D;
+    private double accelerationBase = 0.2D;
+    private double decelerationBase = 0.5D;
 
     //Movement
     private Positioning position;
+    private Movement movement;
 //    private boolean movingForward;
 //    private boolean movingBackward;
 //    private boolean movingLeft;
@@ -48,8 +49,9 @@ public class PlaceholderPlayer {
 
     public PlaceholderPlayer(String path, int cordX, int cordY) {
         this.path = path;
-        this.cordX = cordX;
-        this.cordY = cordY;
+        this.interFrameDelta = 0;
+
+        movement = new Movement(accelerationBase, decelerationBase, maxVelocity, cordX, cordY);
 
         loadSprite();
         loadPosition();
@@ -62,6 +64,19 @@ public class PlaceholderPlayer {
         spriteProcessor.crop(0, 1, spriteSheet, Positioning.FACING_LEFT);
         spriteProcessor.crop(0, 2, spriteSheet, Positioning.FACING_BACKWARD);
         spriteProcessor.crop(0, 3, spriteSheet, Positioning.FACING_RIGHT);
+
+        for (int i = 0; i < 9; i++) {
+            spriteProcessor.crop(i, 0, spriteSheet, WALKING_FORWARD);
+        }
+        for (int i = 0; i < 9; i++) {
+            spriteProcessor.crop(i, 1, spriteSheet, WALKING_LEFT);
+        }
+        for (int i = 0; i < 9; i++) {
+            spriteProcessor.crop(i, 2, spriteSheet, WALKING_BACKWARD);
+        }
+        for (int i = 0; i < 9; i++) {
+            spriteProcessor.crop(i, 3, spriteSheet, WALKING_RIGHT);
+        }
     }
 
     public void loadPosition() {
@@ -75,110 +90,52 @@ public class PlaceholderPlayer {
 //        crouching = false;
     }
 
-    public BufferedImage getSprite(Positioning position) {
-        return spriteSheet.get(position);
+    public BufferedImage getSprite() {
+        return spriteSheet.getImage(position, movement.getSafeFrame(backward, forward, left, right));
     }
 
-    public BufferedImage getSprite() {
-        return spriteSheet.get(position);
+    public BufferedImage getUpdatedSprite() {
+        try {
+            spriteSheet.getImage(position, movement.getNextFrame(position, forward, backward, left, right));
+        } catch (IndexOutOfBoundsException ioobe) {
+            System.out.println(forward + " - " + backward + " - " + left + " - " + right);
+            LOG.printWithLevel(1, "MOVING=" + (forward == false && backward == false && left == false && right == false));
+            LOG.printWithLevel(1, "SIZE=" + spriteSheet.getArray(position).size() + " | GETTING->" + movement.getNextFrame(position, forward, backward, left, right));
+            LOG.printWithLevel(1, position + " - " + movement.getNextFrame(position, forward, backward, left, right));
+        }
+        return spriteSheet.getImage(position, movement.getNextFrame(position, forward, backward, left, right));
     }
 
     private void determinePosition() {
-        if (yVelocity < 0 && Math.abs(xVelocity) < Math.abs(yVelocity)) {
-            setPosition(Positioning.FACING_FORWARD);
-        }
-        if (yVelocity > 0 && Math.abs(xVelocity) < Math.abs(yVelocity)) {
-            setPosition(Positioning.FACING_BACKWARD);
-        }
-        if (xVelocity < 0 && Math.abs(xVelocity) > Math.abs(yVelocity)) {
-            setPosition(Positioning.FACING_LEFT);
-        }
-        if (xVelocity > 0 && Math.abs(xVelocity) > Math.abs(yVelocity)) {
-            setPosition(Positioning.FACING_RIGHT);
-        }
+        position = movement.determinePosition(position);
     }
 
-    public void draw(Graphics g) {
+    public void draw(Graphics g, double delta) {
         determinePosition();
-        g.drawImage(getSprite(), cordX, cordY, SCALE, SCALE, null);
-    }
-
-    public void move() {
-        if (forward || backward) {
-            if (forward) {
-                yVelocity = lerpNeg(maxVelocity, yVelocity, accelerationDelta);
-            }
-            if (backward) {
-                yVelocity = lerpPos(maxVelocity, yVelocity, accelerationDelta);
-            }
+        if (requiresNewFrame(delta)) {
+            g.drawImage(getUpdatedSprite(), movement.getCordX(), movement.getCordY(), SCALE, SCALE, null);
         } else {
-            yVelocity = lerpDecelerate(0, yVelocity, decelerationDelta);
+            g.drawImage(getSprite(), movement.getCordX(), movement.getCordY(), SCALE, SCALE, null);
         }
-        if (left || right) {
-            if (left) {
-                xVelocity = lerpNeg(maxVelocity, xVelocity, accelerationDelta);
-            }
-            if (right) {
-                xVelocity = lerpPos(maxVelocity, xVelocity, accelerationDelta);
-            }
-        } else {
-            xVelocity = lerpDecelerate(0, xVelocity, decelerationDelta);
-        }
-
-        cordY = (int) (cordY + yVelocity);
-        cordX = (int) (cordX + xVelocity);
     }
 
-    private double lerpPos(double goalVelocity, double currentVelocity, double delta) {
-        if ((currentVelocity + delta) > goalVelocity)
-            return goalVelocity;
-        return currentVelocity + delta;
+    public void move(double delta) {
+        movement.move(delta, forward, backward, left, right);
     }
 
-    private double lerpNeg(double goalVelocity, double currentVelocity, double delta) {
-        if ((currentVelocity - delta) < -goalVelocity)
-            return -goalVelocity;
-        return currentVelocity - delta;
-    }
-
-    private double lerpDecelerate(double goalVelocity, double currentVelocity, double delta) {
-        if (currentVelocity == goalVelocity)
-            return goalVelocity;
-
-        if (currentVelocity > 0) {
-            if ((currentVelocity - delta) < goalVelocity)
-                return goalVelocity;
-            return currentVelocity - delta;
+    private boolean requiresNewFrame(double delta) {
+        boolean requiresNewFrame = false;
+        this.interFrameDelta += delta;
+        if (interFrameDelta > maxInterFrameDelta) {
+            interFrameDelta -= maxInterFrameDelta;
+//            return true;
+            requiresNewFrame = true;
         }
-
-        if (currentVelocity < 0) {
-            if ((currentVelocity + delta) < goalVelocity)
-                return goalVelocity;
-            return currentVelocity + delta;
-        }
-        return goalVelocity;
+//        return false;
+        return requiresNewFrame;
     }
 
-    //    /**
-//     * OLD!!
-//     * @param path
-//     * @param i
-//     */
-//    public PlaceholderPlayer(String path, int i) {
-//        this.path = path;
-//        LOG.printWithLevel(10, "ATTEMPTING TO LOAD -> "+path);
-//        BufferedImage image = null;
-//        try {
-//            image = ImageIO.read(PlaceholderPlayer.class.getResourceAsStream(path));
-//            spriteProcessor = new SpriteProcessor(image, SCALE);
-//            LOG.printWithLevel(10, "LOADED SUCCESSFULLY");
-//        } catch (Exception e) {
-//            LOG.printWithLevel(0, "FAILED TO LOAD -> "+path);
-//            LOG.printStackTrace(e);
-//        }
-//    }
-
-    // ====================  SETTERS  ====================
+    // ====================  SETTERS & GETTERS  ====================
 
     public void setForward(boolean forward) {
         this.forward = forward;
@@ -201,10 +158,18 @@ public class PlaceholderPlayer {
     }
 
     public double getxVelocity() {
-        return xVelocity;
+        return movement.getxVelocity();
     }
 
     public double getyVelocity() {
-        return yVelocity;
+        return movement.getyVelocity();
+    }
+
+    public int getX() {
+        return movement.getCordX();
+    }
+
+    public int getY() {
+        return movement.getCordY();
     }
 }

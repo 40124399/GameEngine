@@ -50,10 +50,10 @@ public class SpriteProcessor {
     }
 
     public void crop (int col, int row, int w, int h, ProcessedSpriteSheet processedSpriteSheet, Positioning position) {
-        processedSpriteSheet.put(position, sheet.getSubimage(col * w, row * h, w, h));
+        processedSpriteSheet.addOrPut(position, sheet.getSubimage(col * w, row * h, w, h));
     }
 
     public void crop (int col, int row, ProcessedSpriteSheet processedSpriteSheet, Positioning position) {
-        processedSpriteSheet.put(position, sheet.getSubimage(col * scale, row * scale, scale, scale));
+        processedSpriteSheet.addOrPut(position, sheet.getSubimage(col * scale, row * scale, scale, scale));
     }
 }
